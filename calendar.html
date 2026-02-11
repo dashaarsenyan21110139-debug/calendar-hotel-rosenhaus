@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Hotel Rosenhaus - Buchungskalender</title>
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://hotel-rosenhaus.de/",
+      "@type": "Hotel",
+      "name": "Hotel Rosenhaus",
+      "description": "Exklusives Hotel mit Bestpreis-Garantie. Sparen Sie 15% bei Langzeitaufenthalten ab 60 Nächten.",
+      "priceRange": "90€ - 250€",
+      "offers": {
+        "@type": "Offer",
+        "description": "Langzeitrabatt",
+        "discount": "15%",
+        "eligibleDuration": {
+          "@type": "QuantitativeValue",
+          "minValue": 60,
+          "unitCode": "DAY"
+        }
+      }
+    }
+    </script>
+    
+    <style>
+        /* --- CSS STILE --- */
+        :root {
+            --brand-primary: #8a1c33; 
+            --brand-primary-hover: #6d1628;
+            --brand-secondary: #c5a065; 
+            --brand-bg: #fdfbf7; 
+            --text-main: #2c2c2c;
+            --text-light: #666666;
+            --border-color: #dcd6ce;
+            --blocked-color: #f3f3f3;
+            --blocked-text: #ccc;
+        }
+
+        body {
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
+        }
+
+        #price-calendar-widget {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            border-top: 5px solid var(--brand-primary);
+            border-radius: 4px;
+            background-color: #ffffff;
+            color: var(--text-main);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        #price-calendar-widget * { box-sizing: border-box; }
+
+        #price-calendar-widget h2 {
+            margin: 0 0 24px;
+            font-size: 26px;
+            color: var(--brand-primary);
+            font-family: "Georgia", serif;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
+        }
+
+        /* Steuerungen */
+        .pcw-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 24px;
+            align-items: flex-start; /* Выравнивание по верху */
+        }
+
+        .pcw-control {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 160px;
+        }
+
+        .pcw-control label:not(.pcw-breakfast-control) { /* Исключаем лейбл завтрака из общих стилей */
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            color: var(--text-light);
+            letter-spacing: 0.5px;
+        }
+
+        .pcw-control select,
+        .pcw-control input[type="number"] { /* Стилизуем только числовые инпуты и селекты */
+            padding: 12px;
+            border-radius: 3px;
+            border: 1px solid #ccc;
+            font-size: 15px;
+            background-color: var(--brand-bg);
+            transition: border-color 0.2s;
+            color: var(--text-main);
+        }
+
+        .pcw-control select:focus,
+        .pcw-control input[type="number"]:focus {
+            outline: none;
+            border-color: var(--brand-primary);
+        }
+
+        /* --- СТИЛИ ДЛЯ ПЕРЕКЛЮЧАТЕЛЯ ЗАВТРАКА --- */
+        /* Скрываем стандартный чекбокс */
+        #pcw-breakfast {
+            display: none;
+        }
+
+        /* Контейнер-переключатель */
+        .pcw-breakfast-control {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background-color: #ffffff;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+            min-width: 200px; /* Немного шире для текста */
+            position: relative;
+            user-select: none;
+        }
+
+        /* Эффект при наведении на неактивный блок */
+        .pcw-breakfast-control:hover:not(:has(input:checked)) {
+            border-color: var(--brand-secondary);
+            background-color: #fdfaf5;
+        }
+
+        /* СОСТОЯНИЕ "ВКЛЮЧЕНО" (когда галочка стоит) */
+        .pcw-breakfast-control:has(input:checked) {
+            background-color: var(--brand-primary); /* Окрашиваем фон в бордовый */
+            border-color: var(--brand-primary);
+            box-shadow: 0 4px 12px rgba(138, 28, 51, 0.3);
+        }
+
+        /* Заголовок завтрака */
+        .pcw-breakfast-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--text-main);
+            display: block;
+            margin-bottom: 4px;
+            transition: color 0.3s;
+            text-transform: uppercase;
+        }
+
+        /* Подзаголовок с ценой */
+        .pcw-breakfast-subtitle {
+            font-size: 11px;
+            color: var(--text-light);
+            display: block;
+            margin-bottom: 12px;
+            transition: color 0.3s;
+        }
+
+        /* Меняем цвет текста при активации на белый */
+        .pcw-breakfast-control:has(input:checked) .pcw-breakfast-title,
+        .pcw-breakfast-control:has(input:checked) .pcw-breakfast-subtitle {
+            color: #ffffff;
+        }
+
+        /* Дорожка переключателя */
+        .pcw-toggle-track {
+            width: 50px;
+            height: 26px;
+            background-color: #e0e0e0;
+            border-radius: 13px;
+            position: relative;
+            transition: background-color 0.3s;
+            margin: 0 auto; /* Центрируем */
+        }
+
+        /* Ползунок переключателя */
+        .pcw-toggle-handle {
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* Анимация ползунка и дорожки при активации */
+        #pcw-breakfast:checked + .pcw-breakfast-content .pcw-toggle-track {
+            background-color: rgba(255, 255, 255, 0.3); /* Светлая дорожка на темном фоне */
+        }
+
+        #pcw-breakfast:checked + .pcw-breakfast-content .pcw-toggle-handle {
+            transform: translateX(24px); /* Движение вправо */
+        }
+
+
+        /* Kalender Header */
+        .pcw-calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding: 0 8px;
+        }
+
+        .pcw-calendar-header-title {
+            font-weight: bold;
+            font-size: 20px;
+            font-family: "Georgia", serif;
+            color: var(--text-main);
+        }
+
+        .pcw-month-nav {
+            padding: 8px 16px;
+            border-radius: 3px;
+            border: 1px solid var(--border-color);
+            background-color: #fff;
+            color: var(--text-main);
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .pcw-month-nav:hover {
+            background-color: var(--brand-primary);
+            color: #fff;
+            border-color: var(--brand-primary);
+        }
+
+        /* Kalender Tabelle */
+        .pcw-calendar-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 6px;
+            table-layout: fixed;
+        }
+
+        .pcw-calendar-table th {
+            padding: 10px 0;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-light);
+        }
+
+        .pcw-calendar-table td {
+            padding: 0;
+            height: 90px;
+            vertical-align: top;
+        }
+
+        .pcw-day-cell {
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background-color: #fff;
+            transition: border-color 0.2s, transform 0.2s;
+            position: relative;
+        }
+
+        .pcw-day-cell:hover:not(.pcw-day--disabled):not(.pcw-day--blocked) {
+            border-color: var(--brand-primary);
+            z-index: 2;
+        }
+
+        .pcw-day-number {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .pcw-price-container {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .pcw-old-price {
+            font-size: 11px;
+            color: #aaa;
+            text-decoration: line-through;
+            margin-bottom: 2px;
+        }
+
+        .pcw-day-price {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--brand-primary);
+        }
+
+        /* --- ZUSTANDS-KLASSEN (STATES) --- */
+
+        .pcw-day-cell-empty {
+            cursor: default;
+            background: transparent;
+            border: none;
+        }
+
+        .pcw-day--today {
+            background-color: #fffcf5;
+            border-color: var(--brand-secondary);
+        }
+        
+        /* Start- oder Enddatum fest ausgewählt */
+        .pcw-day--selected-start {
+            background-color: var(--brand-primary) !important;
+            border-color: var(--brand-primary) !important;
+            color: #fff !important;
+        }
+        
+        .pcw-day--selected-start .pcw-day-price,
+        .pcw-day--selected-start .pcw-day-number,
+        .pcw-day--selected-start .pcw-old-price {
+            color: #fff !important;
+        }
+        
+        /* Zeitraum bereits fest ausgewählt */
+        .pcw-day--in-range {
+            background-color: rgba(138, 28, 51, 0.1); 
+            border-color: var(--brand-primary);
+        }
+
+        /* --- NEU: Hover Effekt für Vorschau --- */
+        /* Zeigt an, was ausgewählt WÜRDE, wenn man klickt */
+        .pcw-day--hover-range {
+            background-color: rgba(197, 160, 101, 0.3) !important; /* Gold/Beige halbtransparent */
+            border-color: var(--brand-secondary) !important;
+        }
+
+        /* Blockiert */
+        .pcw-day--blocked {
+            background-color: var(--blocked-color);
+            color: var(--blocked-text);
+            cursor: not-allowed;
+            border-color: #eee;
+        }
+        .pcw-day--blocked .pcw-price-container { display: none; }
+
+        /* Summary & Action */
+        .pcw-summary {
+            margin-top: 24px;
+            padding: 20px;
+            background-color: var(--brand-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        .pcw-summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 15px;
+            border-bottom: 1px dashed #e0e0e0;
+            padding-bottom: 5px;
+        }
+
+        .pcw-summary-total {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid var(--brand-primary);
+            font-weight: bold;
+            font-size: 18px;
+            color: var(--brand-primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .pcw-actions {
+            margin-top: 24px;
+            text-align: right;
+        }
+
+        .pcw-booking-btn {
+            padding: 14px 40px;
+            font-size: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 3px;
+            border: none;
+            cursor: pointer;
+            background-color: var(--brand-primary);
+            color: #ffffff;
+            transition: background-color 0.2s;
+        }
+
+        .pcw-booking-btn:hover {
+            background-color: var(--brand-primary-hover);
+        }
+
+        @media (max-width: 600px) {
+            #price-calendar-widget { padding: 15px; }
+            .pcw-calendar-table td { height: 75px; }
+            .pcw-controls { flex-direction: column; gap: 10px; }
+            .pcw-booking-btn { width: 100%; }
+            .pcw-control { min-width: 100%; } /* На мобильных на всю ширину */
+        }
+    </style>
+</head>
+<body>
+
+<div id="price-calendar-widget">
+    <h2>Verfügbarkeit & Preise</h2>
+
+    <div class="pcw-controls">
+        <div class="pcw-control">
+            <label for="pcw-room-type">Zimmerkategorie</label>
+            <select id="pcw-room-type">
+                <option value="STANDARD">Standardzimmer</option>
+                <option value="DELUXE">Deluxe Rosen-Zimmer</option>
+                <option value="FAMILY">Familienappartements</option>
+            </select>
+        </div>
+
+        <div class="pcw-control">
+            <label for="pcw-guests">Personen</label>
+            <input id="pcw-guests" type="number" min="1" max="6" value="2">
+        </div>
+
+        <div class="pcw-control">
+            <label for="pcw-nights">Nächte</label>
+            <input id="pcw-nights" type="number" min="1" max="90" value="1">
+        </div>
+        
+        <label class="pcw-control pcw-breakfast-control" for="pcw-breakfast">
+            <input type="checkbox" id="pcw-breakfast">
+            <div class="pcw-breakfast-content">
+                <span class="pcw-breakfast-title">Frühstück zubuchen</span>
+                <span class="pcw-breakfast-subtitle">+15€ pro Person / Nacht</span>
+                
+                <div class="pcw-toggle-track">
+                    <div class="pcw-toggle-handle"></div>
+                </div>
+            </div>
+        </label>
+    </div>
+    
+    <div style="font-size:12px; color:#666; margin-bottom:10px; text-align:center;">
+        <span style="display:inline-block; width:12px; height:12px; background:var(--brand-primary); margin-right:4px;"></span>Anreise/Abreise
+        <span style="display:inline-block; width:12px; height:12px; background:rgba(138, 28, 51, 0.1); border:1px solid #8a1c33; margin-left:15px; margin-right:4px;"></span>Auswahl
+        <span style="display:inline-block; width:12px; height:12px; background:#f3f3f3; margin-left:15px; margin-right:4px;"></span>Belegt
+    </div>
+
+    <div class="pcw-calendar">
+        <div class="pcw-calendar-header">
+            <button type="button" class="pcw-month-nav" id="pcw-prev-month">&lt;</button>
+            <div class="pcw-calendar-header-title" id="pcw-month-label"></div>
+            <button type="button" class="pcw-month-nav" id="pcw-next-month">&gt;</button>
+        </div>
+
+        <table class="pcw-calendar-table" id="pcw-calendar-table">
+            <thead>
+            <tr>
+                <th>Mo</th><th>Di</th><th>Mi</th><th>Do</th><th>Fr</th><th>Sa</th><th>So</th>
+            </tr>
+            </thead>
+            <tbody id="pcw-calendar-body"></tbody>
+        </table>
+    </div>
+
+    <div class="pcw-summary" id="pcw-summary"></div>
+
+    <div class="pcw-actions">
+        <button type="button" class="pcw-booking-btn" id="pcw-booking-btn">
+            Jetzt Buchen
+        </button>
+    </div>
+</div>
+
+<script>
+    (function () {
+        // =========================================================
+        // 1. STEUERBLOCK (PREISE HIER ÄNDERN)
+        // =========================================================
+        
+        // Grundpreise pro Nacht
+        const roomTypes = {
+            STANDARD: { code: 'STANDARD', name: 'Standardzimmer', basePrice: 90 },
+            DELUXE: { code: 'DELUXE', name: 'Deluxe Rosen-Zimmer', basePrice: 135 },
+            FAMILY: { code: 'FAMILY', name: 'Familienappartements', basePrice: 170 }
+        };
+
+        // Sonderregeln (Aktionen, Ausstellungen, Feiertage)
+        const specialPriceRules = [
+            { 
+                start: '2026-01-09', 
+                end: '2026-01-20', 
+                fixedPrice: 125,
+                roomType: 'STANDARD'
+            },
+            { 
+                start: '2026-03-09', 
+                end: '2026-03-20', 
+                multiplier: 1.3
+            },
+            { 
+                start: '2026-06-01', 
+                end: '2026-08-31', 
+                multiplier: 1.1
+            }
+        ];
+
+        const breakfastPricePerPerson = 15;
+        const longStayNights = 60; 
+        const longStayDiscount = 0.15; 
+        const blockedDates = []; 
+
+        // =========================================================
+        // 2. LOGIK (BESSER NICHT ANFASSEN)
+        // =========================================================
+
+        const roomSelect = document.getElementById('pcw-room-type');
+        const guestsInput = document.getElementById('pcw-guests');
+        const nightsInput = document.getElementById('pcw-nights');
+        const breakfastCheck = document.getElementById('pcw-breakfast');
+        const monthLabel = document.getElementById('pcw-month-label');
+        const prevMonthBtn = document.getElementById('pcw-prev-month');
+        const nextMonthBtn = document.getElementById('pcw-next-month');
+        const calendarBody = document.getElementById('pcw-calendar-body');
+        const calendarTable = document.getElementById('pcw-calendar-table');
+        const summaryEl = document.getElementById('pcw-summary');
+        const bookingBtn = document.getElementById('pcw-booking-btn');
+
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        let currentYear = today.getFullYear();
+        let currentMonth = today.getMonth(); 
+        let startDate = null; 
+        let endDate = null;
+
+        function pad(num) { return num < 10 ? '0' + num : String(num); }
+        function formatDateForUrl(date) { return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()); }
+        function formatDateDisplay(date) { return pad(date.getDate()) + '.' + pad(date.getMonth() + 1) + '.' + date.getFullYear(); }
+        function cloneDate(date) { return new Date(date.getTime()); }
+
+        function isDateBlocked(date) {
+            const strDate = formatDateForUrl(date);
+            return blockedDates.includes(strDate) || date < today;
+        }
+
+        function isRangeAvailable(start, end) {
+            const temp = cloneDate(start);
+            while (temp < end) {
+                if (isDateBlocked(temp)) return false;
+                temp.setDate(temp.getDate() + 1);
+            }
+            return true;
+        }
+
+        function diffDays(d1, d2) {
+            return Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 3600 * 24));
+        }
+
+        function getPriceForDate(roomKey, date, guestsCount) {
+            const room = roomTypes[roomKey];
+            if (!room) return { final: 0, fake: 0 };
+            
+            let currentPrice = room.basePrice;
+            const dateStr = formatDateForUrl(date);
+
+            const rule = specialPriceRules.find(r => {
+                const isDateInRange = (dateStr >= r.start && dateStr <= r.end);
+                const isRoomMatch = !r.roomType || r.roomType === roomKey;
+                return isDateInRange && isRoomMatch;
+            });
+
+            if (rule) {
+                if (rule.fixedPrice) {
+                    currentPrice = rule.fixedPrice;
+                } else if (rule.multiplier) {
+                    currentPrice *= rule.multiplier;
+                }
+            }
+
+            currentPrice += Math.max(0, guestsCount - 2) * 20; 
+            
+            if (date.getDay() === 5 || date.getDay() === 6) {
+                currentPrice *= 1.1; 
+            }
+
+            return { 
+                final: Math.round(currentPrice), 
+                fake: Math.round(currentPrice * 1.2) 
+            };
+        }
+
+        function calculateTotalSum() {
+            if (!startDate || !endDate) return null;
+            const nights = diffDays(startDate, endDate);
+            if (nights <= 0) return null;
+
+            const roomKey = roomSelect.value;
+            const guestsCount = parseInt(guestsInput.value) || 2;
+            let totalRoomPrice = 0;
+            let totalFake = 0;
+
+            const cursor = cloneDate(startDate);
+            for (let i = 0; i < nights; i++) {
+                const p = getPriceForDate(roomKey, cursor, guestsCount);
+                totalRoomPrice += p.final;
+                totalFake += p.fake;
+                cursor.setDate(cursor.getDate() + 1);
+            }
+
+            const breakfastTotal = breakfastCheck.checked ? (breakfastPricePerPerson * guestsCount * nights) : 0;
+            let finalSum = totalRoomPrice + breakfastTotal;
+
+            let discountApplied = false;
+            if (nights >= longStayNights) {
+                finalSum *= (1 - longStayDiscount);
+                discountApplied = true; 
+            }
+
+            return { 
+                total: Math.round(finalSum), 
+                fakeTotal: Math.round(totalFake + breakfastTotal), 
+                nights, 
+                isLongStay: discountApplied,
+                breakfast: breakfastTotal
+            };
+        }
+
+        function clearHoverEffects() {
+            document.querySelectorAll('.pcw-day--hover-range').forEach(cell => cell.classList.remove('pcw-day--hover-range'));
+        }
+
+        function handleDayHover(hoverDate) {
+            if (startDate && !endDate && hoverDate > startDate) {
+                clearHoverEffects();
+                if (isRangeAvailable(startDate, hoverDate)) {
+                    let tempDate = cloneDate(startDate);
+                    tempDate.setDate(tempDate.getDate() + 1);
+                    while (tempDate <= hoverDate) {
+                        const cell = document.querySelector(`.pcw-day-cell[data-date="${formatDateForUrl(tempDate)}"]`);
+                        if (cell) cell.classList.add('pcw-day--hover-range');
+                        tempDate.setDate(tempDate.getDate() + 1);
+                    }
+                }
+            }
+        }
+
+        calendarTable.addEventListener('mouseleave', clearHoverEffects);
+
+        function renderCalendar() {
+            const roomKey = roomSelect.value;
+            const guestsCount = parseInt(guestsInput.value) || 2;
+            const monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+            monthLabel.textContent = monthNames[currentMonth] + ' ' + currentYear;
+
+            const firstDay = new Date(currentYear, currentMonth, 1);
+            const lastDay = new Date(currentYear, currentMonth + 1, 0);
+            let startWeekday = firstDay.getDay() - 1;
+            if (startWeekday < 0) startWeekday = 6;
+
+            calendarBody.innerHTML = '';
+            let day = 1;
+            for (let row = 0; row < 6; row++) {
+                const tr = document.createElement('tr');
+                for (let col = 0; col < 7; col++) {
+                    const td = document.createElement('td');
+                    if ((row === 0 && col < startWeekday) || day > lastDay.getDate()) {
+                        td.innerHTML = '<div class="pcw-day-cell pcw-day-cell-empty"></div>';
+                    } else {
+                        const dateObj = new Date(currentYear, currentMonth, day);
+                        const isBlocked = isDateBlocked(dateObj);
+                        const cellDiv = document.createElement('div');
+                        cellDiv.className = 'pcw-day-cell' + (isBlocked ? ' pcw-day--blocked' : '');
+                        
+                        if (!isBlocked) {
+                            if (dateObj.getTime() === today.getTime()) cellDiv.classList.add('pcw-day--today');
+                            if (startDate && dateObj.getTime() === startDate.getTime()) cellDiv.classList.add('pcw-day--selected-start');
+                            if (startDate && endDate) {
+                                if (dateObj > startDate && dateObj < endDate) cellDiv.classList.add('pcw-day--in-range');
+                                if (dateObj.getTime() === endDate.getTime()) cellDiv.classList.add('pcw-day--selected-start');
+                            }
+                            cellDiv.setAttribute('data-date', formatDateForUrl(dateObj));
+                            const p = getPriceForDate(roomKey, dateObj, guestsCount);
+                            cellDiv.innerHTML = `<div class="pcw-day-number">${day}</div>
+                                                 <div class="pcw-price-container">
+                                                    <span class="pcw-old-price">${p.fake}€</span>
+                                                    <span class="pcw-day-price">${p.final}€</span>
+                                                 </div>`;
+                            cellDiv.onclick = () => onDayClick(dateObj);
+                            cellDiv.onmouseenter = () => handleDayHover(dateObj);
+                        } else {
+                            cellDiv.innerHTML = `<div class="pcw-day-number">${day}</div><div style="text-align:center; font-size:10px; color:#aaa; margin-top:10px;">X</div>`;
+                        }
+                        td.appendChild(cellDiv);
+                        day++;
+                    }
+                    tr.appendChild(td);
+                }
+                calendarBody.appendChild(tr);
+                if (day > lastDay.getDate()) break;
+            }
+        }
+
+        function renderSummary() {
+            summaryEl.innerHTML = '';
+            if (!startDate) { summaryEl.innerHTML = '<i>Bitte Anreise wählen.</i>'; return; }
+            if (!endDate) { summaryEl.innerHTML = `<b>Anreise: ${formatDateDisplay(startDate)}</b><br>Bitte Abreise wählen.`; return; }
+
+            const data = calculateTotalSum();
+            const room = roomTypes[roomSelect.value];
+            summaryEl.innerHTML = `
+                <div class="pcw-summary-row"><span>Zimmer:</span> <strong>${room.name}</strong></div>
+                <div class="pcw-summary-row"><span>Zeit:</span> <strong>${formatDateDisplay(startDate)} - ${formatDateDisplay(endDate)}</strong></div>
+                <div class="pcw-summary-row"><span>Nächte:</span> <strong>${data.nights}</strong></div>
+                ${data.breakfast > 0 ? `<div class="pcw-summary-row"><span>Frühstück:</span> <strong>+${data.breakfast} €</strong></div>` : ''}
+                ${data.isLongStay ? `<div class="pcw-summary-row" style="color:var(--brand-secondary);"><span>Langzeitrabatt:</span> <strong>-15%</strong></div>` : ''}
+                <div class="pcw-summary-total"><span>Gesamt:</span><div style="text-align:right"><div class="pcw-old-price" style="font-size:14px">${data.fakeTotal}€</div><div>${data.total}€</div></div></div>
+            `;
+            nightsInput.value = data.nights;
+        }
+
+        function onDayClick(date) {
+            if (!startDate || (startDate && endDate)) { startDate = date; endDate = null; clearHoverEffects(); }
+            else if (date > startDate) { if (isRangeAvailable(startDate, date)) endDate = date; else alert("Belegt!"); }
+            else { startDate = date; }
+            renderCalendar(); renderSummary();
+        }
+
+        prevMonthBtn.onclick = () => { currentMonth--; if (currentMonth < 0) { currentMonth = 11; currentYear--; } renderCalendar(); };
+        nextMonthBtn.onclick = () => { currentMonth++; if (currentMonth > 11) { currentMonth = 0; currentYear++; } renderCalendar(); };
+        roomSelect.onchange = guestsInput.onchange = breakfastCheck.onchange = () => { renderCalendar(); renderSummary(); };
+        
+        bookingBtn.onclick = () => {
+            if (!startDate || !endDate) return alert('Daten wählen!');
+            const d = calculateTotalSum();
+            alert(`Buchung: ${d.total}€`);
+        };
+
+        renderCalendar(); renderSummary();
+    })();
+</script>
+</body>
+</html>
